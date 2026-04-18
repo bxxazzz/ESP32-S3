@@ -8,6 +8,7 @@
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 
+// Log NAME.
 static const char *TAG = "LCD";
 
 // 패널 & 프레임버퍼 초기화.
