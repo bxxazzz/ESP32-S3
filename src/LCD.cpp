@@ -9,8 +9,6 @@
 #include "esp_log.h"
 #include <stdio.h>
 
-static const char *TAG = "LCD";
-
 // 패널 & 프레임버퍼 초기화.
 static esp_lcd_panel_handle_t panel = NULL;
 static uint16_t *framebuffer = NULL;
