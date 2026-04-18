@@ -2,7 +2,6 @@
 #include "driver/i2c.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include <stdio.h>
 
 #define I2C_MASTER_NUM       I2C_NUM_0
 #define I2C_MASTER_SDA_IO    8
@@ -77,15 +76,17 @@ void CH422G_SET(uint8_t pin, uint8_t level)
 // I2C Scan용 함수.
 void I2C_SCAN(void)
 {
-    printf("I2C SCAN START\n");
-    for (uint8_t addr = 1; addr < 127; addr++) 
+    uint8_t addr;
+
+    printf("I2C SCAN START... \r\n");
+    for (addr=1; addr<127; addr++) 
     {
         i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 
         i2c_master_start(cmd);
         if (i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_WRITE, true) == ESP_OK) 
         {
-            if (i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(10)) == ESP_OK) printf("FOUND: 0x%02X\r\n", addr);
+            if (i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(10)) == ESP_OK) printf("0x%02X\r\n", addr);
         }
 
         i2c_cmd_link_delete(cmd);

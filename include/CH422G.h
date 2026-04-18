@@ -7,6 +7,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
+#include <stdio.h>
 
 void CH422G_INIT(void);
 void CH422G_GPIO_WRITE(uint8_t value);

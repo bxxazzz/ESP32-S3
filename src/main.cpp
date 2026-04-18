@@ -7,7 +7,6 @@
 
 extern "C" void app_main(void)
 {
-    // 시작 전 딜레이 필수. 아니면 업로드 중 밑에 날아가고 바로 while()로 넘어감.
     vTaskDelay(pdMS_TO_TICKS(2000));
 
     CH422G_INIT();

@@ -7,11 +7,20 @@
 #include "esp_lcd_panel_ops.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
-#include <stdio.h>
+
+static const char *TAG = "LCD";
 
 // 패널 & 프레임버퍼 초기화.
-static esp_lcd_panel_handle_t panel = NULL;
-static uint16_t *framebuffer = NULL;
+static esp_lcd_panel_handle_t LCD_PANEL = NULL;
+static uint16_t *FRAME_1 = NULL;
+static uint16_t *FRAME_2 = NULL;
+
+// 현재 프레임.
+static uint8_t FRAME_INDEX = 0;
+
+// 프레임 변경.
+#define CHANGE_FRAME    FRAME_INDEX ^= 1
+
 
 #define LCD_WIDTH   1024
 #define LCD_HEIGHT  600
@@ -77,16 +86,21 @@ void LCD_INIT(void)
     config.timings.flags.de_idle_high = 0;    
 
     config.flags.fb_in_psram = 1;
-    config.num_fbs = 1;
+
+    // double frame buffer.
+    config.num_fbs = 2;             
     config.sram_trans_align = 4;
     config.psram_trans_align = 64;
     config.bounce_buffer_size_px = 1024 * 10;
 
-    ESP_ERROR_CHECK(esp_lcd_new_rgb_panel(&config, &panel));
-    ESP_ERROR_CHECK(esp_lcd_panel_init(panel));
-
-    // PSRAM에 프레임버퍼 할당.
-    framebuffer = (uint16_t *)heap_caps_malloc(LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    ESP_ERROR_CHECK(esp_lcd_new_rgb_panel(&config, &LCD_PANEL));
+    ESP_ERROR_CHECK(esp_lcd_panel_init(LCD_PANEL));
+    
+    // PSRAM에 프레임버퍼 할당.ssssssssssssssss
+    // Double frame buffer.
+    ESP_ERROR_CHECK(esp_lcd_rgb_panel_get_frame_buffer(LCD_PANEL, 2, (void **)&FRAME_1, (void **)&FRAME_2));
+    // Single frame buffer.
+    // framebuffer = (uint16_t *)heap_caps_malloc(LCD_WIDTH * LCD_HEIGHT * sizeof(uint16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
     // 백라이트 ON.
     CH422G_SET(2, 1);
@@ -94,7 +108,6 @@ void LCD_INIT(void)
     printf("LCD Init... \r\n");
 }
 
-// 제어 핵심.
 /*
     1. ESP_LCD_NEW_RGB_PANEL()      ==>     패널 생성.
     2. ESP_LCD_PANEL_INIT()         ==>     해당 패널 초기화.
@@ -102,6 +115,46 @@ void LCD_INIT(void)
     4. 버퍼에 데이터 채움.
     5. ESP_LCD_PANEL_DRWA_BITMAP()  ==>     LCD패널에 데이터 올림.
 */
+
+// ■■■■■■■■■■■■■■■■■■■■■■■■■■■ DOUBLE FRAME BUFFER ■■■■■■■■■■■■■■■■■■■■■■■■■■■
+static uint16_t *GET_FRAMEBUFFER()
+{
+    if(FRAME_INDEX == 0) return FRAME_1;
+    else                 return FRAME_2;
+}
+
+static void LCD_FILL_BUFFER(uint16_t *buffer, uint16_t color)
+{
+    if(buffer == NULL) return;
+
+    uint32_t pixel = LCD_WIDTH * LCD_HEIGHT;
+    uint32_t color_data = ((uint32_t)color << 16) | color;
+    uint32_t *buffer_32 = (uint32_t *)buffer;
+    uint32_t i;
+
+    for(i=0; i<pixel / 2; i++) buffer_32[i] = color_data;
+}
+
+void LCD_FILL(uint8_t R, uint8_t G, uint8_t B)
+{
+    uint16_t *buffer = GET_FRAMEBUFFER();
+
+    uint16_t color;
+    uint32_t send_color;   
+    uint32_t i, j;
+
+    // 생성된 거 없으면 그냥 나감.
+    if(LCD_PANEL == NULL || FRAME_1 == NULL || FRAME_2 == NULL) return;
+
+    color = RGB565(R, G, B);
+    LCD_FILL_BUFFER(buffer, color);
+    esp_lcd_panel_draw_bitmap(LCD_PANEL, 0, 0, LCD_WIDTH, LCD_HEIGHT, buffer);
+
+    CHANGE_FRAME;
+}
+
+// ■■■■■■■■■■■■■■■■■■■■■■■■■■■ SINGLE FRAME BUFFER ■■■■■■■■■■■■■■■■■■■■■■■■■■■
+/*
 void LCD_FILL(uint8_t R, uint8_t G, uint8_t B)
 {
     uint16_t color;
@@ -117,6 +170,7 @@ void LCD_FILL(uint8_t R, uint8_t G, uint8_t B)
         color = RGB565(R, G, B);
 
         for(i=0; i<LCD_WIDTH * LCD_HEIGHT; i++) framebuffer[i] = color;
-        esp_lcd_panel_draw_bitmap(panel, 0, 0, LCD_WIDTH, LCD_HEIGHT, framebuffer);
+        esp_lcd_panel_draw_bitmap(LCD_PANEL, 0, 0, LCD_WIDTH, LCD_HEIGHT, framebuffer);
     }
 }
+*/
