@@ -25,14 +25,68 @@
 // FreeRTOS 사용을 위한 필수 Header. 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+// Queue => FIFO.
+#include "freertos/queue.h"
 
 #include "CH422G.h"
 #include "LCD.h"
 #include "GT911.h"
 
+// Queue Handle.
+QueueHandle_t MAIN_QUEUE;
+int16_t SI_MAIN[10];
+
+// FreeRTOS.
+// Core 0 : 통신.
+// Core 1 : 화면 및 터치.
+// Task는 10개 내외로 구성하는게 유리함.
+
+// ■■■■■■■■■■■■■■■■ Core 0 : Test... ■■■■■■■■■■■■■■■■
+static void TASK_COMM(void *pvParameters)
+{
+
+}
+
+static void TASK_WIFI(void *pvParameters)
+{
+  
+}
+
+// ■■■■■■■■■■■■■■■■ Core 1 : LCD / Touch ■■■■■■■■■■■■■■■■
+// void *pvParameters  => 타입 없는 포인터, FreeRTOS는 테스크에 어떤 데이터 넘겨줄 지 미리 알수가 없으므로, 일단 주소만 보내줌.
+//                     ㄴ 대신, 사용할 땐 반드시 형변환을 거쳐줘야 함.
+static void TASK_TOUCH(void *pvParameters)
+{
+  while(1)
+  {
+    TOUCH_READ();
+
+    vTaskDelay(pdMS_TO_TICKS(50));
+  }
+}
+
+static void TASK_GUI(void *pvParameters)
+{
+  uint8_t R, G, B;
+
+  while(1)
+  {
+    R = (uint8_t)((LCD_TOUCH.x * 31) / 1023);
+    G = (uint8_t)((LCD_TOUCH.y * 63) / 599);
+    B = 15;
+
+    LCD_FILL(R, G, B);
+    vTaskDelay(pdMS_TO_TICKS(20));
+  }
+}
+
+
 extern "C" void app_main(void)
 {
-    vTaskDelay(pdMS_TO_TICKS(2000));
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
+    // 큐 3개 생성, 개별 크기 : SI_MAIN 크기
+    MAIN_QUEUE = xQueueCreate(3, sizeof(SI_MAIN));
 
     CH422G_INIT();
     I2C_SCAN();
@@ -54,9 +108,8 @@ extern "C" void app_main(void)
 
     LCD_FILL(0, 0, 0);  
 
-    while (1)
-    {
-      TOUCH_READ();
-      vTaskDelay(pdMS_TO_TICKS(10));
-    }
+    //xTaskCreatePinnedToCore(TASK_COMM, "CommTask", 2048 * 2, NULL, 20, NULL, 0);
+    //xTaskCreatePinnedToCore(TASK_WIFI, "WifiTask", 2048 * 4, NULL, 15, NULL, 0);
+    xTaskCreatePinnedToCore(TASK_TOUCH, "TouchTask", 2048 * 1, NULL, 10, NULL, 1);
+    xTaskCreatePinnedToCore(TASK_GUI, "GuiTask", 2048 * 6, NULL, 5, NULL, 1);
 }
