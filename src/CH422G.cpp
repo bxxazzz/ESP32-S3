@@ -3,6 +3,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+// I2C.
 #define I2C_MASTER_NUM       I2C_NUM_0
 #define I2C_MASTER_SDA_IO    8
 #define I2C_MASTER_SCL_IO    9
@@ -12,7 +13,6 @@
 // 1. 0x24 (제어 가능 레지스터 영역)    |  SET
 // 2. 0x38 (출력 레지스터 영역)         |  SET
 // 3. 사이에 딜레이는 불필요함.
-
 #define CH422G_CMD_SET       0x24
 #define CH422G_CMD_IO        0x38
 
@@ -24,7 +24,7 @@ static uint8_t LCD_BLOFF     = 0x1A;
 
 
 // 주소 뒤 레지스터 없이 1Byte만 전송.
-static esp_err_t CH422_Write(uint8_t cmd_addr, uint8_t data) 
+static esp_err_t CH422_WRITE(uint8_t cmd_addr, uint8_t data) 
 {
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
@@ -33,6 +33,7 @@ static esp_err_t CH422_Write(uint8_t cmd_addr, uint8_t data)
     i2c_master_stop(cmd);
     esp_err_t result = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(10));
     i2c_cmd_link_delete(cmd);
+
     return result;
 }
 
@@ -66,11 +67,11 @@ void CH422G_SET(uint8_t pin, uint8_t level)
     if(level == 1) DATA |= (1 << pin);
     else           DATA &= ~(1 << pin);
 
-    if(!(CH422_Write(CH422G_CMD_IO, PIN_OUT_SET))) printf("OUTPUT SET... \r\n");
-    else                                           printf("OUTPUT FAIL... \r\n");
+    if(!(CH422_WRITE(CH422G_CMD_SET, PIN_OUT_SET))) printf("OUTPUT SET... \r\n");
+    else                                            printf("OUTPUT FAIL... \r\n");
     
-    if(!(CH422_Write(CH422G_CMD_IO, DATA)))        printf("DATA SET... \r\n");
-    else                                           printf("DATA FAIL... \r\n");
+    if(!(CH422_WRITE(CH422G_CMD_IO, DATA)))         printf("DATA SET... \r\n");
+    else                                            printf("DATA FAIL... \r\n");
 }
 
 // I2C Scan용 함수.
