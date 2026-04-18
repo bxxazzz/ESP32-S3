@@ -7,6 +7,7 @@ extern "C" {
 #endif
 
 #include <stdio.h>
+#include "esp_err.h"
 
 typedef struct 
 {
