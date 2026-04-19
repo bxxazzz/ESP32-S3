@@ -8,8 +8,11 @@ extern "C" {
 
 #include <stdio.h>
 
-void LCD_INIT(void);
+#define LVGL_USE    
+
+void LCD_INIT();
 void LCD_FILL(uint8_t R, uint8_t G, uint8_t B);
+void LVGL_INIT();
 
 #ifdef __cplusplus
 }

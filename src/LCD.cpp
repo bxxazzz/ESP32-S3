@@ -8,6 +8,11 @@
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 
+// LVGL 라이브러리.
+#ifdef LVGL_USE
+    #include "lvgl.h"
+#endif
+
 // Log NAME.
 static const char *TAG = "LCD";
 
@@ -22,13 +27,12 @@ static uint8_t FRAME_INDEX = 0;
 // 프레임 변경.
 #define CHANGE_FRAME    FRAME_INDEX ^= 1
 
-
-#define LCD_WIDTH   1024
-#define LCD_HEIGHT  600
+#define LCD_WIDTH   800
+#define LCD_HEIGHT  480
 
 #define RGB565(r, g, b)  (uint16_t)((((r) & 0x1F) << 11) | (((g) & 0x3F) << 5) | ((b) & 0x1F))
 
-void LCD_INIT(void)
+void LCD_INIT()
 {
     // ESP32에서 LCD 제어를 위한 구조체 선언.
     /*
@@ -71,8 +75,8 @@ void LCD_INIT(void)
 
     // 데모보드 기준 작성.
     config.timings.pclk_hz = 21 * 1000 * 1000;
-    config.timings.h_res = 1024;
-    config.timings.v_res = 600;
+    config.timings.h_res = 800;
+    config.timings.v_res = 480;
 
     config.timings.hsync_pulse_width = 30;
     config.timings.hsync_back_porch = 145;
@@ -92,12 +96,12 @@ void LCD_INIT(void)
     config.num_fbs = 2;             
     config.sram_trans_align = 4;
     config.psram_trans_align = 64;
-    config.bounce_buffer_size_px = 1024 * 10;
+    config.bounce_buffer_size_px = 800 * 10;
 
     ESP_ERROR_CHECK(esp_lcd_new_rgb_panel(&config, &LCD_PANEL));
     ESP_ERROR_CHECK(esp_lcd_panel_init(LCD_PANEL));
     
-    // PSRAM에 프레임버퍼 할당.ssssssssssssssss
+    // PSRAM에 프레임버퍼 할당.
     // Double frame buffer.
     ESP_ERROR_CHECK(esp_lcd_rgb_panel_get_frame_buffer(LCD_PANEL, 2, (void **)&FRAME_1, (void **)&FRAME_2));
     // Single frame buffer.
@@ -175,3 +179,37 @@ void LCD_FILL(uint8_t R, uint8_t G, uint8_t B)
     }
 }
 */
+
+// ■■■■■■■■■■■■■■■■■■■■■■■■■■■ LVGL ■■■■■■■■■■■■■■■■■■■■■■■■■■■
+#ifdef LVGL_USE
+    /*
+        1. LVGL → 버퍼에 그래픽 데이터 전송.
+        2. 전송 완료 시 아래 Callback 함수 실행.
+    */
+    static void LVGL_CALLBACK(lv_display_t *disp, const lv_area_t *area, uint8_t *map)
+    {
+        esp_lcd_panel_draw_bitmap(LCD_PANEL, area->x1, area->y1, area->x2 + 1, area->y2 + 1, map);
+        lv_display_flush_ready(disp);   // 전송 완료.
+    }
+
+    void LVGL_INIT() 
+    {
+        uint32_t buffer;
+
+        // 1. LVGL 초기화.
+        lv_init();
+
+        // 2. 디스플레이 객체 생성.
+        lv_display_t *disp = lv_display_create(LCD_WIDTH, LCD_HEIGHT); 
+        
+        // 3. 버퍼 설정. 
+        // 16Bit : Pixel 2Byte.
+        // 1024 x 600 x 2 = 1228800byte (1.2MB)
+        // Double framebuffer 설정 해놨으므로, LVGL에 해당 FRAME_1, FRAME_2의 주소만 전송해줌.
+        buffer = 800 * 480 * sizeof(uint16_t);
+        lv_display_set_buffers(disp, FRAME_1, FRAME_2, buffer, LV_DISPLAY_RENDER_MODE_FULL);
+
+        // 4. 콜백 함수 등록.
+        lv_display_set_flush_cb(disp, LVGL_CALLBACK);
+    }
+#endif

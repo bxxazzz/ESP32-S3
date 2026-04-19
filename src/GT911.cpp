@@ -17,7 +17,6 @@
 #define GT911_POINT          0x8150         // 첫번째 터치 좌표 데이터.
 
 TOUCH_POINT LCD_TOUCH;
-uint16_t    DELAY_CNT;
 
 static esp_err_t GT911_WRITE(uint8_t cmd_addr, uint16_t reg, uint8_t data)
 {
@@ -142,11 +141,11 @@ static esp_err_t GT911_READXY(TOUCH_POINT *t_data)
         t_data -> y = (uint16_t)(touch_buffer[3] << 8 | touch_buffer[2]);
 
         // 좌표값 스케일링.
-        t_data -> x = TOUCH_SCALE(t_data -> x, 800, 1024);
-        t_data -> y = TOUCH_SCALE(t_data -> y, 480, 600);
+        t_data -> x = TOUCH_SCALE(t_data -> x, 800, 800);
+        t_data -> y = TOUCH_SCALE(t_data -> y, 480, 480);
 
-        if(t_data -> x > 1024) t_data -> x = 1024;
-        if(t_data -> y > 600)  t_data -> y = 600;
+        if(t_data -> x > 800) t_data -> x = 800;
+        if(t_data -> y > 480)  t_data -> y = 480;
 
         // 감지.
         t_data -> pressed = true;
@@ -163,17 +162,11 @@ void TOUCH_READ()
 {
     GT911_READXY(&LCD_TOUCH);
 
-    if(LCD_TOUCH.pressed)
+    //if(LCD_TOUCH.pressed)
     {
-        DELAY_CNT = 0;
-        printf("X = %u, Y = %u, C = %u \r\n", LCD_TOUCH.x, LCD_TOUCH.y, LCD_TOUCH.count);
+        //printf("SRAM: %d bytes \r\n", heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+       // printf("PSRAM: %d bytes \r\n", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
     }
-    else
-    {
-        if(++DELAY_CNT > 200)
-        {
-            DELAY_CNT = 0;
-            printf("No Touch!!! \r\n");
-        }
-    }
+    
+   if(LCD_TOUCH.pressed) printf("X = %u, Y = %u, C = %u \r\n", LCD_TOUCH.x, LCD_TOUCH.y, LCD_TOUCH.count);
 }
